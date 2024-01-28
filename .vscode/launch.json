@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Client",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3002/", // Update the URL as needed
+      "webRoot": "${workspaceFolder}/public"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Server",
+      "runtimeExecutable": "nodemon",
+      "program": "${workspaceRoot}/server.js",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+        "name": "Server/Client",
+        "configurations": ["Server", "Client"]
+    }
+]
+}

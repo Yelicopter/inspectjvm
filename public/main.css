@@ -1,0 +1,33 @@
+*, :after, :before {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 14px;
+    line-height: 1.42857143;
+    color: #333;
+    background-color: #fff;
+}
+
+h1 {
+    font-family: Playfair Display,serif!important;
+    font-size: 14vmin!important;
+    color:#000;
+    margin: 0.67em 0;
+    display:block;
+}
+
+.vertical-center {
+    height: 100vh;
+    color: #0000008e;
+    min-height: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center 
+}
+
+.header {
+    background: linear-gradient(rgba(206, 191, 250, 0.241),rgba(255, 255, 255, 0.2)) center no-repeat;
+    background-size: cover
+}

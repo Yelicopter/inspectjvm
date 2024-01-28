@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="main.css">
+    <title>IJVM Debugger</title>
+</head>
+<body>
+    <div class="header vertical-center">
+        <h1>InspectJVM</h1>
+        <h2>Upload your IJVM binary and inspect</h2>
+    </div>
+    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" />
+        <button type="submit" id="uploadButton">Upload</button>
+    </form>
+    <div id="responseMessage"></div>
+    <button id="stepButton">Step</button>
+    <button id="runButton">Run</button>
+    <textarea id="output" rows="80" cols="150" readonly></textarea>
+    <script src="debugger.js"></script>
+</body>
+</html>
