@@ -6,19 +6,18 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const port = 5265;
+const port = 5500;
 const upload = multer({ dest: 'uploads/' });
 
 // Serve static files from 'client' directory
 app.use(express.static(path.join(__dirname, '../client')));
-
-let ijvmProcess = null;
 
 const server = app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
 
 const wss = new WebSocket.Server({ server });
+const clientProcesses = new Map();
 
 app.post('/upload', upload.single('file'), (req, res) => {
     const filePath = req.file.path;
@@ -36,35 +35,36 @@ app.post('/upload', upload.single('file'), (req, res) => {
         if (err) {
             return res.status(500).json({ error: 'Failed to read file' });
         }
-        const hexData = data.toString('hex').match(/.{1,2}/g).join(' ');
-
+        const hexData = data.toString('hex').match(/.{1,2}/g);
         res.json({ filePath, hexData });
     });
 });
 
 wss.on('connection', (ws) => {
-    let filePath;
-
     ws.on('message', (message) => {
         const data = JSON.parse(message);
 
         if (data.command === 'upload') {
-            filePath = data.payload.filePath;
+            const filePath = data.payload.filePath;
             ws.send(JSON.stringify({ command: 'displayHex', payload: { hexData: data.payload.hexData } }));
-             // Initialize the ijvm 
-            if (ijvmProcess) {
-                ijvmProcess.kill();
+
+            // Initialize the ijvm process
+            if (clientProcesses.has(ws)) {
+                clientProcesses.get(ws).kill();
             }
-            ijvmProcess = spawn(path.resolve(__dirname, 'ijvm'), [filePath]);
+            const ijvmProcess = spawn(path.resolve(__dirname, 'ijvm'), [filePath]);
+            clientProcesses.set(ws, ijvmProcess);
             setupProcessListeners(ijvmProcess, ws);
-        } else if (ijvmProcess) {
+        } else if (clientProcesses.has(ws)) {
+            const ijvmProcess = clientProcesses.get(ws);
             ijvmProcess.stdin.write(`${data.command}\n`);
         }
     });
 
     ws.on('close', () => {
-        if (ijvmProcess) {
-            ijvmProcess.kill();
+        if (clientProcesses.has(ws)) {
+            clientProcesses.get(ws).kill();
+            clientProcesses.delete(ws);
         }
 
         fs.readdir('uploads', (err, files) => {
