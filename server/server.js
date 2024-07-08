@@ -41,6 +41,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 wss.on('connection', (ws) => {
+    let ijvmProcess = null;
+
     ws.on('message', (message) => {
         const data = JSON.parse(message);
 
@@ -49,21 +51,28 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify({ command: 'displayHex', payload: { hexData: data.payload.hexData } }));
 
             // Initialize the ijvm process
-            if (clientProcesses.has(ws)) {
-                clientProcesses.get(ws).kill();
+            if (ijvmProcess) {
+                ijvmProcess.kill();
             }
-            const ijvmProcess = spawn(path.resolve(__dirname, 'ijvm'), [filePath]);
+            ijvmProcess = spawn(path.resolve(__dirname, 'ijvm'), [filePath]);
+            console.log(`Started ijvm process with PID: ${ijvmProcess.pid}`);
             clientProcesses.set(ws, ijvmProcess);
             setupProcessListeners(ijvmProcess, ws);
-        } else if (clientProcesses.has(ws)) {
-            const ijvmProcess = clientProcesses.get(ws);
+        } else if (ijvmProcess) {
+            console.log(`Sending command: ${data.command}`);
             ijvmProcess.stdin.write(`${data.command}\n`);
+            if (data.command === 'run') {
+                // Add a slight delay to ensure the process handles the command
+                setTimeout(() => {
+                    ijvmProcess.stdin.write('pc\n');
+                }, 100);  // Adjust timing as needed
+            }
         }
     });
 
     ws.on('close', () => {
-        if (clientProcesses.has(ws)) {
-            clientProcesses.get(ws).kill();
+        if (ijvmProcess) {
+            ijvmProcess.kill();
             clientProcesses.delete(ws);
         }
 
@@ -86,9 +95,25 @@ wss.on('connection', (ws) => {
 
 function setupProcessListeners(process, ws) {
     process.stdout.on('data', (data) => {
-        ws.send(JSON.stringify({ command: 'output', payload: { data: data.toString() } }));
+        const output = data.toString();
+        console.log('Received output:', output);  // Add debugging info
+        if (output.startsWith('Program Counter: ')) {
+            const pc = output.split('Program Counter: ')[1].trim();
+            ws.send(JSON.stringify({ command: 'updatePC', payload: { pc } }));
+        } else {
+            ws.send(JSON.stringify({ command: 'output', payload: { data: output } }));
+        }
     });
+
     process.stderr.on('data', (data) => {
         ws.send(JSON.stringify({ command: 'output', payload: { data: data.toString() } }));
+    });
+
+    process.on('error', (err) => {
+        console.error('Process error:', err);
+    });
+
+    process.on('exit', (code, signal) => {
+        console.log(`Process exited with code ${code}, signal ${signal}`);
     });
 }
