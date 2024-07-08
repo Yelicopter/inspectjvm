@@ -2,8 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const stepButton = document.getElementById('stepButton');
     const runButton = document.getElementById('runButton');
+    const stepsButton = document.getElementById('stepsButton');
+    const stepsInput = document.getElementById('stepsInput');
+    const hexOutputElement = document.getElementById('hexOutput');
     const outputElement = document.getElementById('output');
-    const ws = new WebSocket('ws://localhost:5265');
+    const pcElement = document.getElementById('programCounter');
+    const ws = new WebSocket('ws://localhost:5500');
     let uploadedFilePath;
 
     fileInput.addEventListener('change', () => {
@@ -12,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Check if the file is an ijvm file
         if (!file.name.endsWith('.ijvm')) {
-            outputElement.value = 'Please select a valid IJVM file.\n';
+            hexOutputElement.innerHTML = 'Please select a valid IJVM file.\n';
             return;
         }
 
@@ -26,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                outputElement.value = `Error: ${data.error}\n`;
+                hexOutputElement.innerHTML = `Error: ${data.error}\n`;
                 return;
             }
             uploadedFilePath = data.filePath;
@@ -34,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(error => {
             console.error('Error uploading file:', error);
-            outputElement.value = 'Error uploading file.\n';
+            hexOutputElement.innerHTML = 'Error uploading file.\n';
         });
     });
 
@@ -46,13 +50,24 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.send(JSON.stringify({ command: 'run' }));
     });
 
+    stepsButton.addEventListener('click', () => {
+        const numSteps = parseInt(stepsInput.value, 10);
+        if (!isNaN(numSteps)) {
+            ws.send(JSON.stringify({ command: `steps ${numSteps}` }));
+        } else {
+            outputElement.value = 'Invalid number of steps\n';
+        }
+    });
+
     ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
 
         if (data.command === 'displayHex') {
-            outputElement.value = `HEX Data:\n${data.payload.hexData}\n\n`;
+            hexOutputElement.innerHTML = formatHexData(data.payload.hexData);
         } else if (data.command === 'output') {
             outputElement.value += `${data.payload.data}\n`;
+        } else if (data.command === 'updatePC') {
+            pcElement.innerHTML = `Program Counter: ${data.payload.pc}`;
         }
     };
 
@@ -60,3 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Connected to WebSocket server");
     };
 });
+
+function formatHexData(hexData) {
+    return hexData.map(byte => `<span class="hex-byte">${byte}</span>`).join('');
+}
